@@ -39,99 +39,121 @@ This research develops a spatiotemporal graph neural network (ST-GNN) pipeline f
 
 ## System Architecture
 
-### End-to-End Pipeline
+### End-to-End Data Pipeline
 
-```
-OSM Network Data (Dhaka Boundary)
-          │
-          ▼
-Network Builder (NetworkX)
-│ 62K nodes, 156K edges
-│ MultiDiGraph format
-          │
-          ├─────────────────┬──────────────────┐
-          │                 │                  │
-    Spatial Features   Temporal Features   Traffic Model
-    ├─ Coordinates    ├─ Hour of day      ├─ Congestion
-    ├─ Distance       ├─ Day of week      ├─ Speed
-    ├─ Road type      ├─ Timestamps       └─ Travel time
-    └─ Capacity       └─ Temporal flags
-          │
-          ▼
-Parquet Datasets (3 files)
-│ tfp_edges_meta.parquet (7.5 MB)
-│ tfp_timestamps.parquet (12.7 KB)
-│ tfp_traffic_timeseries.parquet (1.57 GB)
-          │
-          ▼
-GNN Data Preprocessing
-│ Normalization, feature engineering
-│ Train/val/test split (70/10/20)
-          │
-          ▼
-PyTorch Geometric Graph Construction
-          │
-    ┌─────┼─────┬──────┐
-    │     │     │      │
-Baseline TGCN STGCN ASTGCN
-    │     │     │      │
-    └─────┼─────┼──────┘
-          │
-          ▼
-Evaluation & Metrics
-│ MAE, RMSE, R², MAPE
-│ Performance by road type & hour
-          │
-          ▼
-Visualizations (7 PNG figures)
+```mermaid
+flowchart TD
+    A["OpenStreetMap Data<br/>(Dhaka Boundary)"] --> B["Network Builder<br/>(NetworkX)"]
+    B --> C["62K Nodes<br/>156K Edges"]
+    
+    C --> D["Spatial Features"]
+    C --> E["Temporal Features"]
+    C --> F["Traffic Simulation"]
+    
+    D --> G["Coordinates<br/>Distance<br/>Road Type<br/>Capacity"]
+    E --> H["Hour of Day<br/>Day of Week<br/>Timestamps<br/>Temporal Flags"]
+    F --> I["Congestion Factor<br/>Current Speed<br/>Travel Time"]
+    
+    G --> J["Parquet Datasets"]
+    H --> J
+    I --> J
+    
+    J --> K["Data Preprocessing<br/>(Normalization)"]
+    K --> L["Train/Val/Test Split<br/>70/10/20"]
+    L --> M["PyTorch Geometric<br/>Graph Construction"]
+    
+    M --> N{"Model Architecture"}
+    N -->|Baseline| O["Temporal Conv"]
+    N -->|TGCN| P["Graph + Temporal"]
+    N -->|STGCN| Q["Spatial-Temporal Conv"]
+    N -->|ASTGCN| R["Attention-based STGCN"]
+    
+    O --> S["Training Loop<br/>(Adam, MSE Loss)"]
+    P --> S
+    Q --> S
+    R --> S
+    
+    S --> T["Evaluation Metrics<br/>(MAE, RMSE, R²)"]
+    T --> U["Visualizations<br/>(7 PNG Figures)"]
 ```
 
-### Component Phases
+### Data Processing Phases
 
-**Phase 1: Data Acquisition**
-- Download OSM network for Dhaka (highway tags filtered)
-- Extract administrative boundary using OSM/Nominatim
-- Network type: "drive" (vehicle networks)
-- Graph format: NetworkX MultiDiGraph
+```mermaid
+graph LR
+    subgraph Phase1["Phase 1: Data Acquisition"]
+        A1["Download OSM<br/>Network"]
+        A2["Filter by<br/>Highway Tags"]
+        A3["Extract<br/>Boundary"]
+        A1 --> A2 --> A3
+    end
+    
+    subgraph Phase2["Phase 2: Spatial Engineering"]
+        B1["Extract<br/>Coordinates"]
+        B2["Calculate<br/>Distances"]
+        B3["Road Type<br/>Classification"]
+        B4["Assign<br/>Speed Limits"]
+        B1 --> B2 --> B3 --> B4
+    end
+    
+    subgraph Phase3["Phase 3: Temporal Engineering"]
+        C1["Generate<br/>672 Timestamps"]
+        C2["Extract<br/>Temporal Attrs"]
+        C3["Cyclical<br/>Encoding"]
+        C1 --> C2 --> C3
+    end
+    
+    subgraph Phase4["Phase 4: Traffic Simulation"]
+        D1["Hour Pattern<br/>Modeling"]
+        D2["Temporal<br/>Adjustments"]
+        D3["Capacity<br/>Effects"]
+        D4["Speed & Travel<br/>Time Calc"]
+        D1 --> D2 --> D3 --> D4
+    end
+    
+    subgraph Phase5["Phase 5: Output"]
+        E1["3 Parquet Files<br/>1.57 GB"]
+    end
+    
+    A3 --> B1
+    B4 --> C1
+    C3 --> D1
+    D4 --> E1
+```
 
-**Phase 2: Spatial Feature Engineering**
-- Extract and validate coordinates (WGS-84, EPSG:4326)
-- Calculate Haversine distances between nodes
-- Classify road types (motorway, trunk, primary, secondary, etc.)
-- Assign BRTA speed limits and capacity factors
-- Filter edges within geographic boundary + 200m buffer
+### GNN Model Architecture (ASTGCN)
 
-**Phase 3: Temporal Feature Engineering**
-- Generate 672 timestamps (15-minute intervals, 7 days)
-- Extract temporal attributes: hour, day of week, weekend flag
-- Timezone: Asia/Dhaka (UTC+6)
-- Period: January 6-12, 2025
-
-**Phase 4: Traffic Simulation**
-- Model congestion using hour-of-day patterns
-- Apply temporal adjustments (weekend, Friday peak)
-- Incorporate road capacity effects
-- Add stochastic noise (N(0, 0.10))
-- Calculate current speed and travel time from traffic factor
-
-**Phase 5: Dataset Output**
-- Generate 3 Parquet files (Snappy compression)
-- Total observations: 105,188,832 (edges × timestamps)
-- Compressed size: 1.57 GB
-
-**Phase 6: GNN Model Training**
-- Load and preprocess Parquet data
-- Construct PyTorch Geometric graph
-- Train TGCN, STGCN, and ASTGCN models
-- Optimizer: Adam (lr=0.001)
-- Epochs: 50 with early stopping (patience=10)
-- Batch size: 32
-
-**Phase 7: Evaluation & Visualization**
-- Calculate metrics: MAE, RMSE, R², MAPE
-- Analyze performance by road type and hour
-- Generate 7 visualization plots
-- Spatial error heatmap, hourly analysis, benchmark comparison
+```mermaid
+graph TD
+    A["Input Layer"] --> A1["Node Features<br/>Spatial + Temporal"]
+    A --> A2["Edge Features<br/>Distance, Road Type"]
+    
+    A1 --> B["Attention Module"]
+    A2 --> B
+    B --> B1["Multi-Head<br/>Attention<br/>8 Heads"]
+    B1 --> B2["Dynamic Edge<br/>Weight Learning"]
+    B2 --> B3["Long-Range<br/>Dependencies"]
+    
+    B3 --> C["Spatial Convolution<br/>3 Layers"]
+    C --> C1["Graph Conv<br/>32→64→32→16"]
+    C1 --> C2["ReLU + Batch<br/>Normalization"]
+    C2 --> C3["Dropout<br/>0.2"]
+    
+    C3 --> D["Temporal Convolution<br/>3 Layers"]
+    D --> D1["1D Conv<br/>Kernels: 3,3,3"]
+    D1 --> D2["Dilation:<br/>1,2,4"]
+    D2 --> D3["Residual<br/>Connections"]
+    
+    D3 --> E["Fusion Layer"]
+    E --> E1["Concatenate<br/>Spatial+Temporal"]
+    E1 --> E2["Dense: 32→16<br/>ReLU"]
+    E2 --> E3["Dropout 0.1"]
+    
+    E3 --> F["Prediction Head"]
+    F --> F1["Dense: 16→8→1"]
+    F1 --> F2["Sigmoid<br/>Activation"]
+    F2 --> G["Output<br/>Traffic Factor"]
+```
 
 ---
 
