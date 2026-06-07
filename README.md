@@ -1,134 +1,63 @@
 # Traffic Flow Prediction — Dhaka Urban Network
 
-<div align="center">
-
-![Traffic Flow](https://img.shields.io/badge/Traffic_Flow-Prediction-blue?style=flat-square)
-![Dataset Size](https://img.shields.io/badge/Dataset-105M%2B_Rows-brightgreen?style=flat-square)
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=flat-square)
-
-**A comprehensive Graph Neural Network framework for traffic flow prediction in Dhaka urban transportation network**
-
-[Quick Start](#quick-start) | [Datasets](#output-datasets) | [Results](#results-and-visualizations) | [Installation](#installation-and-setup)
-
-</div>
-
----
-
 ## Overview
 
-This component implements traffic flow prediction for the Dhaka urban transportation network using Graph Neural Networks (GNNs). The project generates high-quality, spatially-aware traffic datasets with 105M+ observations and provides production-ready Parquet files optimized for time-series forecasting tasks.
+This repository contains the Traffic Flow Prediction component for the Dhaka urban transportation network. The project generates production-ready GNN-optimized traffic datasets from OpenStreetMap (OSM) data and provides comprehensive analysis and prediction capabilities for urban traffic patterns.
 
-### Key Features
+## Project Components
 
-- Production-Ready Datasets: 3 optimized Parquet files (1.57 GB compressed)
-- Spatial Awareness: Complete coordinates for 156K+ road edges
-- Temporal Dynamics: 15-minute granularity over 7-day period
-- Multiple Targets: Traffic factor and speed prediction
-- Validated Model: Realistic Dhaka traffic patterns (BRTA calibrated)
-- GNN-Optimized: Pre-processed features for TGCN/STGCN/ASTGCN
+### Notebooks
 
-### Objectives
+**tfp_dataset_generator.ipynb**
+- Cells 0-12: Complete dataset generation pipeline
+- Downloads OSM road network for Dhaka (62K nodes, 156K edges)
+- Extracts administrative boundary using OSM/Nominatim
+- Assigns BRTA (Bangladesh Road Transport Authority) speed limits
+- Calculates capacity factors based on road type
+- Performs vectorized traffic simulation across 7-day period
+- Generates three Parquet output files with Snappy compression
 
-- Generate production-ready traffic flow datasets with spatial and temporal features
-- Provide comprehensive edge metadata with coordinates and road attributes
-- Create time-series traffic observations (105M+ rows) with multiple prediction targets
-- Enable GNN-based traffic prediction and speed forecasting
+**traffic_flow_prediction.ipynb**
+- Main prediction and analysis pipeline
+- Data loading and exploratory analysis
+- GNN model implementation and training
+- Prediction evaluation and performance metrics
+- Result visualization and interpretation
 
----
+### Output Directory (plots/)
 
-## System Architecture
-
-```mermaid
-flowchart TB
-    subgraph data [Data Input]
-        CSV["OSM Road Network<br/>62K nodes, 156K edges"]
-        Admin["Admin Boundary<br/>Extraction"]
-        Speed["Speed Limit<br/>Assignment"]
-    end
-
-    subgraph processing [Processing Pipeline]
-        Capacity["Capacity Factor<br/>Calculation"]
-        Traffic["Vectorized Traffic<br/>Simulation"]
-        Coords["Coordinate<br/>Extraction"]
-    end
-
-    subgraph output [Output Files]
-        Meta["tfp_edges_meta.parquet<br/>156,531 edges × 15 cols<br/>7.5 MB"]
-        TS["tfp_timestamps.parquet<br/>672 steps × 6 cols<br/>12.7 KB"]
-        Data["tfp_traffic_timeseries.parquet<br/>105.2M rows × 5 cols<br/>1.57 GB"]
-    end
-
-    subgraph features [Feature Engineering]
-        Spatial["Spatial Features<br/>Coordinates, Distance"]
-        Road["Road Features<br/>Type, Speed, Capacity"]
-        Temporal["Temporal Features<br/>Hour, DOW, Weekend"]
-    end
-
-    subgraph ml [Machine Learning]
-        Train["GNN Training<br/>TGCN/STGCN/ASTGCN"]
-        Predict["Traffic Prediction<br/>Speed and Congestion"]
-    end
-
-    CSV --> Admin
-    Admin --> Speed
-    Speed --> Capacity
-    Capacity --> Traffic
-    Traffic --> Coords
-    Coords --> Meta
-    Traffic --> TS
-    Traffic --> Data
-    Meta --> Spatial
-    Meta --> Road
-    TS --> Temporal
-    Spatial --> Train
-    Road --> Train
-    Temporal --> Train
-    Train --> Predict
-```
-
----
-
-## Repository Structure
-
-```
-Traffic-Flow-Prediction/
-├── README.md                              # This file
-├── requirements.txt                       # Python dependencies
-├── tfp_dataset_generator.ipynb            # Dataset generation (Cells 0-12)
-├── traffic_flow_prediction.ipynb          # Main prediction and analysis pipeline
-└── plots/                                 # Output visualizations
-    ├── tfp_benchmark_comparison.png
-    ├── tfp_hourly_error.png
-    ├── tfp_per_edge_error_dist.png
-    ├── tfp_roadtype_performance.png
-    ├── tfp_single_edge_prediction.png
-    ├── tfp_spatial_error_heatmap.png
-    └── tfp_training_curve.png
-```
+Contains 7 visualization files generated during model training and evaluation:
+- tfp_training_curve.png: Model convergence across epochs
+- tfp_single_edge_prediction.png: Sample edge prediction performance
+- tfp_hourly_error.png: Mean Absolute Error by hour of day
+- tfp_roadtype_performance.png: Performance metrics by road type
+- tfp_spatial_error_heatmap.png: Geographic error distribution
+- tfp_per_edge_error_dist.png: Error distribution histogram
+- tfp_benchmark_comparison.png: Comparison of modeling approaches
 
 ---
 
 ## Output Datasets
 
-All datasets are stored in Parquet format with Snappy compression for efficient storage and loading.
+Three Parquet files (Snappy compressed) are generated by tfp_dataset_generator.ipynb:
 
 ### 1. tfp_edges_meta.parquet (7.5 MB)
 
-**Static edge metadata with spatial coordinates for GNN construction**
+Static edge metadata with spatial coordinates optimized for GNN construction.
 
 **Schema (15 columns):**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| eidx | uint32 | Edge index (joins timeseries data) |
-| edge_id | string | Unique identifier (u_v_k format) |
+| eidx | uint32 | Edge index for joining with timeseries data |
+| edge_id | string | Unique identifier in format u_v_k |
 | u | int64 | Source OSM node ID |
 | v | int64 | Target OSM node ID |
 | u_lat, u_lon | float32 | Source node coordinates (WGS-84) |
 | v_lat, v_lon | float32 | Target node coordinates (WGS-84) |
 | mid_lat, mid_lon | float32 | Edge midpoint coordinates |
-| haversine_m | float32 | Straight-line distance (meters) |
-| road_type | category | OSM highway type (primary, secondary, etc.) |
+| haversine_m | float32 | Straight-line distance between nodes (meters) |
+| road_type | category | OSM highway type classification |
 | length_m | float32 | Edge length from OSM (meters) |
 | free_speed_kmh | float32 | BRTA speed limit (km/h) |
 | capacity_factor | float32 | Road capacity index [0, 1] |
@@ -140,18 +69,18 @@ All datasets are stored in Parquet format with Snappy compression for efficient 
 
 ### 2. tfp_timestamps.parquet (12.7 KB)
 
-**Temporal metadata for all observation timestamps**
+Temporal metadata for all observation timestamps.
 
 **Schema (6 columns):**
 
 | Column | Type | Description |
 |--------|------|-------------|
 | ts_idx | uint16 | Timestamp index (0 to 671) |
-| timestamp | datetime | Full timestamp (Asia/Dhaka timezone) |
+| timestamp | datetime | Full timestamp with Asia/Dhaka timezone |
 | dow | uint8 | Day of week (0=Monday, 6=Sunday) |
 | hour | uint8 | Hour of day (0 to 23) |
 | minute | uint8 | Minute (0, 15, 30, 45) |
-| is_weekend | uint8 | Binary flag (1=Friday/Saturday) |
+| is_weekend | uint8 | Weekend flag (1=Friday/Saturday) |
 
 **Coverage:**
 - Period: January 6 to 12, 2025 (7 days)
@@ -161,7 +90,7 @@ All datasets are stored in Parquet format with Snappy compression for efficient 
 
 ### 3. tfp_traffic_timeseries.parquet (1.57 GB)
 
-**Time-series traffic observations for all edges and timestamps**
+Time-series traffic observations for all edges and timestamps.
 
 **Schema (5 columns):**
 
@@ -173,70 +102,97 @@ All datasets are stored in Parquet format with Snappy compression for efficient 
 | current_speed_kmh | float32 | Current speed in km/h |
 | traffic_factor | float32 | Congestion index [0, 1] |
 
-**Volume and Targets:**
-- Total Rows: 105,188,832 (156,531 edges multiplied by 672 timestamps)
-- Primary Target: traffic_factor (congestion metric, 0 to 1)
-- Secondary Target: current_speed_kmh (interpretable speed)
+**Volume:**
+- Total Rows: 105,188,832 (156,531 edges × 672 timestamps)
+- Primary Target: traffic_factor (congestion metric, 0 to 1 scale)
+- Secondary Target: current_speed_kmh (interpretable speed metric)
 
 ---
 
-## Results and Visualizations
+## Dataset Generation (tfp_dataset_generator.ipynb)
 
-### Training Progress
+### Key Parameters
 
-The model demonstrates stable convergence with decreasing validation loss across 50 epochs:
+```python
+NETWORK_TYPE = "drive"                    # OSM network for vehicles
+START = "2025-01-06 00:00:00"             # Monday start
+END = "2025-01-12 23:45:00"               # Sunday end
+FREQ = "15min"                            # 15-minute intervals
+OUT_DIR = r"./traffic_flow_prediction"    # Output directory
+SAMPLE_EDGES = None                       # None for all edges
+```
 
-![Training Curve](plots/tfp_training_curve.png)
+### Traffic Model Implementation
 
-**Figure 1:** Model training progress showing convergence over 50 epochs. Validation loss stabilizes around epoch 30, indicating effective learning.
+**Congestion Factor Calculation:**
 
-### Single Edge Prediction
+The traffic_factor represents congestion intensity based on hour-of-day patterns calibrated for Dhaka:
 
-Detailed prediction performance on a sample road edge demonstrates the model's ability to capture traffic dynamics:
+```
+Hour-of-day baseline:
+├─ 00:00 to 05:00: 0.12 (night)
+├─ 07:00 to 10:00: 0.82 (AM peak)
+├─ 17:00 to 20:00: 0.85 (PM peak)
+└─ Other hours: 0.18 to 0.48
 
-![Single Edge Prediction](plots/tfp_single_edge_prediction.png)
+Special adjustments:
+├─ Weekend: base × 0.60
+├─ Friday 12-14 hours: base × 1.25
+└─ Road capacity effect: factor × (1 + 0.6 × (1 - capacity))
 
-**Figure 2:** Predictions versus ground truth for a single edge over the test period. The model captures both baseline behavior and temporal variations.
+Stochastic noise: N(0, 0.10)
+Final range: [0.05, 1.00]
+```
 
-### Hourly Error Analysis
+**Speed Degradation:**
 
-Model performance varies across different hours due to traffic variability:
+```
+current_speed_kmh = max(free_speed × (1 - 0.8 × traffic_factor), 5.0)
+travel_time_s = length_m / (speed_kmh / 3.6)
+```
 
-![Hourly Error](plots/tfp_hourly_error.png)
+**BRTA Speed Limits (Road Type Classification):**
 
-**Figure 3:** Mean Absolute Error (MAE) by hour of day. Peak errors occur during AM peak (7-10 hours) and PM peak (17-20 hours) due to increased traffic variability.
+| Road Type | Speed (km/h) | Capacity |
+|-----------|-------------|----------|
+| motorway | 80 | 0.85 |
+| trunk | 60 | 0.80 |
+| primary | 50 | 0.75 |
+| secondary | 40 | 0.65 |
+| tertiary | 30 | 0.55 |
+| unclassified | 25 | 0.50 |
+| residential | 20 | 0.45 |
 
-### Performance by Road Type
+---
 
-Different road types exhibit varying prediction accuracy based on traffic characteristics:
+## Traffic Flow Prediction (traffic_flow_prediction.ipynb)
 
-![Road Type Performance](plots/tfp_roadtype_performance.png)
+### Model Performance Results
 
-**Figure 4:** MAE and RMSE metrics by road type. Primary roads show better predictability; residential areas exhibit higher variance due to sparse traffic.
+All visualizations in plots/ directory correspond to results from this notebook:
 
-### Spatial Error Distribution
+**Figure 1 (tfp_training_curve.png):** Model convergence showing decreasing validation loss across 50 epochs, stabilizing around epoch 30.
 
-Geographic heatmap of prediction errors across Dhaka shows spatial variation:
+**Figure 2 (tfp_single_edge_prediction.png):** Predictions versus ground truth for a sample road edge, demonstrating model's ability to capture traffic dynamics.
 
-![Spatial Error Heatmap](plots/tfp_spatial_error_heatmap.png)
+**Figure 3 (tfp_hourly_error.png):** Mean Absolute Error (MAE) by hour of day, showing peak errors during AM (7-10 hours) and PM (17-20 hours) congestion periods.
 
-**Figure 5:** Spatial distribution of prediction errors. Central areas (Motijheel, Gulshan) show lower errors due to more consistent traffic patterns.
+**Figure 4 (tfp_roadtype_performance.png):** MAE and RMSE metrics by road type, indicating primary roads have better predictability than residential areas.
 
-### Per-Edge Error Distribution
+**Figure 5 (tfp_spatial_error_heatmap.png):** Geographic distribution of prediction errors across Dhaka, with central areas showing lower errors.
 
-Distribution of prediction errors across all edges reveals overall model performance:
+**Figure 6 (tfp_per_edge_error_dist.png):** Histogram of per-edge MAE values across entire network, showing distribution of model accuracy.
 
-![Per-Edge Error Distribution](plots/tfp_per_edge_error_dist.png)
+**Figure 7 (tfp_benchmark_comparison.png):** Comparison of baseline, TGCN, STGCN, and ASTGCN models, demonstrating relative performance improvements.
 
-**Figure 6:** Histogram of per-edge MAE across the network. Approximately 68 percent of edges have MAE less than 5 km/h.
+### Model Performance Metrics (ASTGCN)
 
-### Benchmark Comparison
-
-Comparison of different modeling approaches demonstrates the effectiveness of attention mechanisms:
-
-![Benchmark Comparison](plots/tfp_benchmark_comparison.png)
-
-**Figure 7:** Comparison of baseline, TGCN, STGCN, and ASTGCN models. ASTGCN achieves 12 percent lower MAE compared to baseline methods.
+| Metric | Train | Validation | Test |
+|--------|-------|-----------|------|
+| MAE (traffic_factor) | 0.042 | 0.068 | 0.071 |
+| RMSE (traffic_factor) | 0.058 | 0.089 | 0.095 |
+| MAE (speed, km/h) | 2.1 | 3.4 | 3.6 |
+| R-squared Score | 0.893 | 0.821 | 0.814 |
 
 ---
 
@@ -244,12 +200,12 @@ Comparison of different modeling approaches demonstrates the effectiveness of at
 
 ### System Requirements
 
-- Python: 3.9 or higher
-- RAM: 16 GB minimum (32 GB recommended for full dataset)
-- Storage: 10 GB for datasets and models
-- GPU: 8GB or higher (optional, for faster training)
+- Python 3.9 or higher
+- RAM: 16 GB minimum (32 GB recommended)
+- Storage: 10 GB for datasets
+- GPU: Optional, 8GB or higher for faster training
 
-### Python Dependencies
+### Dependencies
 
 ```
 python>=3.9
@@ -268,54 +224,31 @@ torch>=2.0
 torch-geometric>=2.3
 ```
 
-### Installation Steps
+### Installation
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/Traffic-Flow/Traffic-Flow-Prediction.git
 cd Traffic-Flow-Prediction
 
-# 2. Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. (Optional) Install GPU support for PyTorch
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ---
 
-## Quick Start
+## Usage
 
 ### Step 1: Generate Datasets
-
-Open and run tfp_dataset_generator.ipynb:
 
 ```bash
 jupyter notebook tfp_dataset_generator.ipynb
 ```
 
-**Key Parameters (Cell 2):**
+Run all cells to generate the three Parquet files. Processing time is approximately 3 minutes total.
 
-```python
-START = "2025-01-06 00:00:00"             # Monday start
-END = "2025-01-12 23:45:00"               # Sunday end  
-FREQ = "15min"                            # 15-minute intervals
-OUT_DIR = r"./traffic_flow_prediction"    # Output directory
-SAMPLE_EDGES = None                       # None for all; int for quick test
-```
-
-**Processing Timeline:**
-- OSM download and boundary extraction: approximately 2 minutes
-- Speed limit assignment: approximately 30 seconds
-- Traffic simulation: approximately 41 seconds
-- Parquet file writing: approximately 5 seconds
-- Total: approximately 3 minutes
-
-**Generated Files:**
+**Generated Output Files:**
 ```
 traffic_flow_prediction/
 ├── tfp_edges_meta.parquet              (7.5 MB)
@@ -323,144 +256,30 @@ traffic_flow_prediction/
 └── tfp_traffic_timeseries.parquet      (1.57 GB)
 ```
 
-### Step 2: Load Data for Analysis
+### Step 2: Load and Analyze Data
 
 ```python
 import pandas as pd
 
-# Load all three datasets
 edges = pd.read_parquet('tfp_edges_meta.parquet')
 timestamps = pd.read_parquet('tfp_timestamps.parquet')
 traffic = pd.read_parquet('tfp_traffic_timeseries.parquet')
 
-# Combine for full feature matrix
+# Combine datasets
 df = traffic.merge(edges, on='eidx').merge(timestamps, on='ts_idx')
 
 print(f"Edges: {len(edges):,}")
 print(f"Timestamps: {len(timestamps)}")
 print(f"Observations: {len(traffic):,}")
-print(f"Full dataset shape: {df.shape}")
 ```
 
-### Step 3: Prepare for GNN Training
+### Step 3: Run Prediction Pipeline
 
-```python
-import networkx as nx
-import numpy as np
-
-# Build spatial graph
-G = nx.DiGraph()
-for _, row in edges.iterrows():
-    G.add_edge(
-        int(row['u']), int(row['v']),
-        edge_idx=int(row['eidx']),
-        length_m=float(row['length_m']),
-        haversine_m=float(row['haversine_m']),
-        free_speed_kmh=float(row['free_speed_kmh'])
-    )
-
-# Extract features
-spatial_features = edges[['u_lat', 'u_lon', 'v_lat', 'v_lon', 
-                          'haversine_m', 'length_m']].values
-
-temporal_features = timestamps[['hour', 'dow', 'is_weekend']].values
-
-# Normalize targets
-target = traffic['traffic_factor'].values  # Range: [0.05, 1.00]
-speed_target = traffic['current_speed_kmh'].values  # Range: [5, 80]
-
-print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+```bash
+jupyter notebook traffic_flow_prediction.ipynb
 ```
 
-### Step 4: Data Exploration
-
-```python
-# Peak hour analysis
-peak_hours = traffic[traffic['ts_idx'].isin(
-    timestamps[timestamps['hour'].isin([7, 8, 9, 17, 18, 19])]['ts_idx']
-)]
-print(f"Peak Hour Average Speed: {peak_hours['current_speed_kmh'].mean():.1f} km/h")
-print(f"Peak Hour Congestion Factor: {peak_hours['traffic_factor'].mean():.3f}")
-
-# Road type comparison
-edge_traffic = traffic.merge(edges[['eidx', 'road_type']], on='eidx')
-road_stats = edge_traffic.groupby('road_type').agg({
-    'current_speed_kmh': ['mean', 'std'],
-    'traffic_factor': ['mean', 'std']
-}).round(2)
-print(f"\nRoad Type Statistics:\n{road_stats}")
-```
-
----
-
-## Traffic Model
-
-### Congestion Factor (0 to 1 Scale)
-
-The traffic_factor represents congestion intensity based on hour-of-day patterns calibrated for Dhaka:
-
-```
-Hour-of-day baseline (Dhaka-calibrated):
-├─ 00:00 to 05:00: 0.12 (night, minimal traffic)
-├─ 07:00 to 10:00: 0.82 (AM peak)
-├─ 17:00 to 20:00: 0.85 (PM peak)
-└─ Other hours: 0.18 to 0.48
-
-Special adjustments:
-├─ Weekend: base multiplied by 0.60
-├─ Friday 12-14 hours: base multiplied by 1.25
-└─ Road capacity effect: factor multiplied by (1 + 0.6 multiplied by (1 - capacity))
-
-Stochastic component: plus or minus N(0, 0.10)
-Final range: [0.05, 1.00]
-```
-
-### Speed Degradation
-
-```
-current_speed_kmh = max(free_speed × (1 - 0.8 × traffic_factor), 5.0)
-travel_time_s = length_m / (speed_kmh / 3.6)
-```
-
-### Road Type Classification (BRTA)
-
-| Road Type | Free Speed | Capacity Factor |
-|-----------|-----------|-----------------|
-| motorway | 80 km/h | 0.85 |
-| trunk | 60 km/h | 0.80 |
-| primary | 50 km/h | 0.75 |
-| secondary | 40 km/h | 0.65 |
-| tertiary | 30 km/h | 0.55 |
-| unclassified | 25 km/h | 0.50 |
-| residential | 20 km/h | 0.45 |
-
----
-
-## GNN Architectures
-
-### TGCN (Temporal Graph Convolution Network)
-
-- Design: GCN combined with LSTM layers
-- Best for: Capturing sequential temporal patterns
-- Input: Static graph with time-series features
-- Advantages: Interpretable, computationally efficient
-- Disadvantages: May miss long-range dependencies
-
-### STGCN (Spatial-Temporal Graph Convolution)
-
-- Design: Joint spatial-temporal convolutions
-- Best for: Regular traffic patterns
-- Input: Graph snapshots across time dimension
-- Advantages: Unified spatial-temporal learning
-- Disadvantages: Requires fixed graph structure
-
-### ASTGCN (Attention-based Spatial-Temporal Graph)
-
-- Design: Multi-head attention over spatial-temporal dimensions
-- Best for: Non-uniform traffic dynamics
-- Input: Graph with temporal features and attention masks
-- Advantages: Learns importance weights automatically
-- Disadvantages: Higher computational cost
+Execute notebook to train GNN models and generate prediction results and visualizations in plots/ directory.
 
 ---
 
@@ -475,20 +294,9 @@ travel_time_s = length_m / (speed_kmh / 3.6)
 | Total Observations | 105,188,832 |
 | Time Span | 7 days |
 | Time Resolution | 15 minutes |
-| Data Volume (raw) | approximately 8 to 10 GB |
 | Data Volume (compressed) | 1.57 GB |
-| Compression Ratio | approximately 5.5 times |
 | Average Speed (peak) | 15 to 25 km/h |
 | Average Speed (off-peak) | 40 to 50 km/h |
-
-### Model Performance (ASTGCN)
-
-| Metric | Train | Validation | Test |
-|--------|-------|-----------|------|
-| MAE (traffic_factor) | 0.042 | 0.068 | 0.071 |
-| RMSE (traffic_factor) | 0.058 | 0.089 | 0.095 |
-| MAE (speed, km/h) | 2.1 | 3.4 | 3.6 |
-| R-squared Score | 0.893 | 0.821 | 0.814 |
 
 ---
 
@@ -496,33 +304,30 @@ travel_time_s = length_m / (speed_kmh / 3.6)
 
 ### Important Features
 
-- Synthetic data generated for research purposes (not real-world GPS data)
-- Deterministic and reproducible with RANDOM_SEED = 42
+- Generated data for research purposes (synthetic simulation)
+- Deterministic and reproducible (RANDOM_SEED = 42)
 - All timestamps in Asia/Dhaka (UTC+6) timezone
 - Coverage: Dhaka City Corporation boundary plus 200m buffer
 - Calibrated to BRTA (Bangladesh Road Transport Authority) standards
-- Validated against typical urban traffic patterns
 
 ### Known Limitations
 
-- Fixed capacity factors (not validated against live traffic data)
 - Simplified congestion model (no incidents or special events)
-- Linear speed degradation model
-- 7-day sample (not representative of year-round patterns)
-- Increased noise during peak hours (realistic simulation)
+- Linear speed degradation relationships
+- 7-day sample period (not representative of year-round patterns)
+- Fixed capacity factors across time period
 
 ---
 
 ## Data Validation
 
 ```python
-# Verify data integrity before use
+# Verify dataset integrity
 checks = {
     "Edge count": len(edges) == 156_531,
     "Timestamp count": len(timestamps) == 672,
     "Traffic factor range": (traffic['traffic_factor'].between(0.05, 1.0)).all(),
     "Speed minimum": (traffic['current_speed_kmh'] >= 5).all(),
-    "Timezone awareness": timestamps['timestamp'].dt.tz is not None,
 }
 
 for check_name, result in checks.items():
@@ -541,7 +346,7 @@ primary_traffic = traffic.merge(
     edges[edges['road_type'] == 'primary'][['eidx']], 
     on='eidx'
 )
-stats = primary_traffic.groupby('hour')['traffic_factor'].agg(['mean', 'std'])
+stats = primary_traffic.groupby('hour')['traffic_factor'].mean()
 ```
 
 ### Extract Peak Hours
