@@ -1,6 +1,6 @@
 # Traffic Flow Prediction — Dhaka Urban Network
 
-## 📋 Overview
+## Overview
 
 This component implements **traffic flow prediction** for the Dhaka urban transportation network using Graph Neural Networks (GNNs). The project generates high-quality, spatially-aware traffic datasets and provides production-ready Parquet files optimized for time-series forecasting tasks.
 
@@ -13,7 +13,7 @@ This component implements **traffic flow prediction** for the Dhaka urban transp
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```mermaid
 flowchart TB
@@ -65,7 +65,7 @@ flowchart TB
 
 ---
 
-## 📂 Files & Notebooks
+## Files & Notebooks
 
 ### Notebooks
 
@@ -93,7 +93,7 @@ traffic_flow_prediction/
 
 ---
 
-## 📊 Output Datasets
+## Output Datasets
 
 ### 1. tfp_edges_meta.parquet (7.5 MB)
 
@@ -165,7 +165,7 @@ traffic_flow_prediction/
 
 ---
 
-## 🔧 Installation & Setup
+## Installation & Setup
 
 ### Requirements
 
@@ -200,7 +200,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Usage Guide
+## Usage Guide
 
 ### Step 1: Generate Datasets
 
@@ -313,7 +313,7 @@ print(hourly_stats)
 
 ---
 
-## 📈 Traffic Model Details
+## Traffic Model Details
 
 ### Congestion Factor Calculation
 
@@ -357,7 +357,7 @@ travel_time_s = length_m / (current_speed_kmh × 1000 / 3600)
 
 ---
 
-## 🎯 Recommended GNN Architectures
+## Recommended GNN Architectures
 
 **Temporal Graph Convolution Network (TGCN)**
 - Combines graph convolution with LSTM
@@ -376,7 +376,7 @@ travel_time_s = length_m / (current_speed_kmh × 1000 / 3600)
 
 ---
 
-## 💾 Data Statistics
+## Data Statistics
 
 | Metric | Value |
 |--------|-------|
@@ -394,7 +394,7 @@ travel_time_s = length_m / (current_speed_kmh × 1000 / 3600)
 
 ---
 
-## ⚠️ Important Notes
+## Important Notes
 
 ### Data Characteristics
 
@@ -423,49 +423,3 @@ assert (timestamps['ts_idx'].diff()[1:] == 1).all(), "Missing timestamps"
 assert (traffic['traffic_factor'].between(0.05, 1.0)).all(), "Factor out of range"
 assert (traffic['current_speed_kmh'] >= 5).all(), "Speed below minimum"
 ```
-
----
-
-## 📖 Citation
-
-```bibtex
-@dataset{dhaka_traffic_flow_2025,
-  title={Traffic Flow Prediction Dataset — Dhaka Urban Network},
-  author={Traffic-Flow Organization},
-  year={2025},
-  url={https://github.com/Traffic-Flow/Traffic-Flow-Prediction}
-}
-```
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Areas for improvement:
-
-- [ ] Add multi-week dataset variants
-- [ ] Include real-world OSM events and incidents
-- [ ] Implement incident-based congestion modeling
-- [ ] Create baseline GNN models (TGCN, STGCN, ASTGCN)
-- [ ] Add real-time prediction interface
-- [ ] Validate against actual traffic data
-
----
-
-## 📄 License
-
-Academic and research use. Contact maintainers for commercial licensing inquiries.
-
----
-
-## 👥 Contact
-
-**Traffic-Flow Organization**  
-📧 [contact email]  
-🔗 [GitHub](https://github.com/Traffic-Flow/Traffic-Flow-Prediction)
-
----
-
-**Last Updated**: June 2026  
-**Version**: 1.0  
-**Status**: Production Ready ✅
