@@ -5,11 +5,10 @@
 ![Traffic Flow](https://img.shields.io/badge/Traffic_Flow-Prediction-blue?style=flat-square)
 ![Dataset Size](https://img.shields.io/badge/Dataset-105M%2B_Rows-brightgreen?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?style=flat-square)
-![License](https://img.shields.io/badge/License-Academic-orange?style=flat-square)
 
 **A comprehensive Graph Neural Network framework for traffic flow prediction in Dhaka urban transportation network**
 
-[Quick Start](#quick-start) | [Datasets](#output-datasets) | [Results](#results--visualizations) | [Installation](#installation--setup)
+[Quick Start](#quick-start) | [Datasets](#output-datasets) | [Results](#results-and-visualizations) | [Installation](#installation-and-setup)
 
 </div>
 
@@ -96,24 +95,15 @@ Traffic-Flow-Prediction/
 ├── README.md                              # This file
 ├── requirements.txt                       # Python dependencies
 ├── tfp_dataset_generator.ipynb            # Dataset generation (Cells 0-12)
-│   ├── OSM network download and boundary extraction
-│   ├── Speed limit assignment (BRTA standards)
-│   ├── Capacity factor calculation
-│   ├── Vectorized traffic simulation
-│   └── Parquet file generation
 ├── traffic_flow_prediction.ipynb          # Main prediction and analysis pipeline
-│   ├── Data loading and exploration
-│   ├── GNN model implementation
-│   ├── Training and evaluation
-│   └── Results visualization
 └── plots/                                 # Output visualizations
-    ├── tfp_benchmark_comparison.png      # Method comparison
-    ├── tfp_hourly_error.png              # Hourly error analysis
-    ├── tfp_per_edge_error_dist.png       # Edge-level error distribution
-    ├── tfp_roadtype_performance.png      # Performance by road type
-    ├── tfp_single_edge_prediction.png    # Sample edge prediction
-    ├── tfp_spatial_error_heatmap.png     # Geographic error distribution
-    └── tfp_training_curve.png            # Model training progress
+    ├── tfp_benchmark_comparison.png
+    ├── tfp_hourly_error.png
+    ├── tfp_per_edge_error_dist.png
+    ├── tfp_roadtype_performance.png
+    ├── tfp_single_edge_prediction.png
+    ├── tfp_spatial_error_heatmap.png
+    └── tfp_training_curve.png
 ```
 
 ---
@@ -146,7 +136,6 @@ All datasets are stored in Parquet format with Snappy compression for efficient 
 **Spatial Coverage:**
 - Bounding Box: 23.60° to 23.95° N, 90.25° to 90.55° E
 - Total Edges: 156,531
-- Largest Component: approximately 25K edges (road network)
 - Coordinate System: WGS-84 (EPSG:4326)
 
 ### 2. tfp_timestamps.parquet (12.7 KB)
@@ -353,14 +342,6 @@ print(f"Observations: {len(traffic):,}")
 print(f"Full dataset shape: {df.shape}")
 ```
 
-**Output:**
-```
-Edges: 156,531
-Timestamps: 672
-Observations: 105,188,832
-Full dataset shape: (105188832, 28)
-```
-
 ### Step 3: Prepare for GNN Training
 
 ```python
@@ -389,43 +370,34 @@ target = traffic['traffic_factor'].values  # Range: [0.05, 1.00]
 speed_target = traffic['current_speed_kmh'].values  # Range: [5, 80]
 
 print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-print(f"Spatial features: {spatial_features.shape}")
-print(f"Temporal features: {temporal_features.shape}")
 ```
 
-### Step 4: Quick Data Exploration
+### Step 4: Data Exploration
 
 ```python
 # Peak hour analysis
 peak_hours = traffic[traffic['ts_idx'].isin(
     timestamps[timestamps['hour'].isin([7, 8, 9, 17, 18, 19])]['ts_idx']
 )]
-print(f"\nPeak Hour Statistics:")
-print(f"   Average Speed: {peak_hours['current_speed_kmh'].mean():.1f} km/h")
-print(f"   Congestion Factor: {peak_hours['traffic_factor'].mean():.3f}")
+print(f"Peak Hour Average Speed: {peak_hours['current_speed_kmh'].mean():.1f} km/h")
+print(f"Peak Hour Congestion Factor: {peak_hours['traffic_factor'].mean():.3f}")
 
 # Road type comparison
 edge_traffic = traffic.merge(edges[['eidx', 'road_type']], on='eidx')
 road_stats = edge_traffic.groupby('road_type').agg({
     'current_speed_kmh': ['mean', 'std'],
-    'traffic_factor': ['mean', 'std'],
-    'travel_time_s': 'mean'
+    'traffic_factor': ['mean', 'std']
 }).round(2)
-print(f"\nRoad Type Performance:\n{road_stats}")
-
-# Temporal pattern
-hourly_stats = traffic.merge(timestamps[['ts_idx', 'hour']], on='ts_idx').groupby('hour').agg({
-    'current_speed_kmh': 'mean',
-    'traffic_factor': 'mean'
-}).round(2)
-print(f"\nHourly Patterns:\n{hourly_stats}")
+print(f"\nRoad Type Statistics:\n{road_stats}")
 ```
 
 ---
 
-## Traffic Model Details
+## Traffic Model
 
 ### Congestion Factor (0 to 1 Scale)
+
+The traffic_factor represents congestion intensity based on hour-of-day patterns calibrated for Dhaka:
 
 ```
 Hour-of-day baseline (Dhaka-calibrated):
@@ -435,27 +407,22 @@ Hour-of-day baseline (Dhaka-calibrated):
 └─ Other hours: 0.18 to 0.48
 
 Special adjustments:
-├─ Weekend: base multiplied by 0.60 (reduced traffic)
-├─ Friday 12-14 hours: base multiplied by 1.25 (Jumu'ah prayer spike)
-└─ Road capacity effect: factor multiplied by (1 plus 0.6 multiplied by (1 minus capacity))
+├─ Weekend: base multiplied by 0.60
+├─ Friday 12-14 hours: base multiplied by 1.25
+└─ Road capacity effect: factor multiplied by (1 + 0.6 multiplied by (1 - capacity))
 
 Stochastic component: plus or minus N(0, 0.10)
 Final range: [0.05, 1.00]
 ```
 
-### Speed Degradation Formula
+### Speed Degradation
 
 ```
-current_speed_kmh = max(free_speed multiplied by (1 minus 0.8 multiplied by traffic_factor), 5.0)
+current_speed_kmh = max(free_speed × (1 - 0.8 × traffic_factor), 5.0)
 travel_time_s = length_m / (speed_kmh / 3.6)
-
-Example (free_speed=50 km/h, traffic_factor=0.7, length=100m):
-├─ Reduction factor: 1 minus 0.8 multiplied by 0.7 = 0.44
-├─ Current speed: 50 multiplied by 0.44 = 22 km/h
-└─ Travel time: 100 / (22 / 3.6) = 16.4 seconds
 ```
 
-### Road Type Calibration (BRTA)
+### Road Type Classification (BRTA)
 
 | Road Type | Free Speed | Capacity Factor |
 |-----------|-----------|-----------------|
@@ -469,7 +436,7 @@ Example (free_speed=50 km/h, traffic_factor=0.7, length=100m):
 
 ---
 
-## Recommended GNN Architectures
+## GNN Architectures
 
 ### TGCN (Temporal Graph Convolution Network)
 
@@ -497,23 +464,22 @@ Example (free_speed=50 km/h, traffic_factor=0.7, length=100m):
 
 ---
 
-## Data Statistics and Benchmarks
+## Dataset Statistics
 
 | Metric | Value |
 |--------|-------|
-| Geographic Area | approximately 3,150 km2 (Dhaka plus 200m buffer) |
+| Geographic Area | approximately 3,150 km2 |
 | Total Edges | 156,531 |
 | Total Nodes | approximately 62,000 |
-| Total Timestamps | 672 (7 days multiplied by 96 per day) |
+| Total Timestamps | 672 |
 | Total Observations | 105,188,832 |
 | Time Span | 7 days |
 | Time Resolution | 15 minutes |
 | Data Volume (raw) | approximately 8 to 10 GB |
 | Data Volume (compressed) | 1.57 GB |
 | Compression Ratio | approximately 5.5 times |
-| Average Speed (peak hours) | 15 to 25 km/h |
+| Average Speed (peak) | 15 to 25 km/h |
 | Average Speed (off-peak) | 40 to 50 km/h |
-| Maximum Congestion Factor | 0.85 (PM peak) |
 
 ### Model Performance (ASTGCN)
 
@@ -526,35 +492,34 @@ Example (free_speed=50 km/h, traffic_factor=0.7, length=100m):
 
 ---
 
-## Important Notes
+## Data Characteristics
 
-### Data Characteristics
+### Important Features
 
-- Synthetic/Simulated: Generated for research purposes (not real-world GPS data)
-- Deterministic: Reproducible with RANDOM_SEED equal to 42
-- Timezone: All timestamps in Asia/Dhaka (UTC+6)
+- Synthetic data generated for research purposes (not real-world GPS data)
+- Deterministic and reproducible with RANDOM_SEED = 42
+- All timestamps in Asia/Dhaka (UTC+6) timezone
 - Coverage: Dhaka City Corporation boundary plus 200m buffer
-- Standards: BRTA (Bangladesh Road Transport Authority) speed guidelines
-- Quality: Validated against typical urban traffic patterns
+- Calibrated to BRTA (Bangladesh Road Transport Authority) standards
+- Validated against typical urban traffic patterns
 
 ### Known Limitations
 
-- Fixed capacity factors (not validated against live traffic)
-- Simplified congestion model (no incidents, accidents, or special events)
-- Linear speed degradation (real traffic may be non-linear)
+- Fixed capacity factors (not validated against live traffic data)
+- Simplified congestion model (no incidents or special events)
+- Linear speed degradation model
 - 7-day sample (not representative of year-round patterns)
-- No origin-destination matrix validation
 - Increased noise during peak hours (realistic simulation)
 
-### Data Validation Checklist
+---
+
+## Data Validation
 
 ```python
 # Verify data integrity before use
 checks = {
     "Edge count": len(edges) == 156_531,
     "Timestamp count": len(timestamps) == 672,
-    "Edge index range": traffic['eidx'].max() == 156_530,
-    "Timestamp continuity": (timestamps['ts_idx'].diff()[1:] == 1).all(),
     "Traffic factor range": (traffic['traffic_factor'].between(0.05, 1.0)).all(),
     "Speed minimum": (traffic['current_speed_kmh'] >= 5).all(),
     "Timezone awareness": timestamps['timestamp'].dt.tz is not None,
@@ -569,135 +534,32 @@ for check_name, result in checks.items():
 
 ## Usage Examples
 
-### Example 1: Load and Analyze Specific Road Type
+### Filter by Road Type
 
 ```python
-# Filter for primary roads
 primary_traffic = traffic.merge(
     edges[edges['road_type'] == 'primary'][['eidx']], 
     on='eidx'
 )
-
-stats = primary_traffic.merge(
-    timestamps, on='ts_idx'
-).groupby('hour')['traffic_factor'].agg(['mean', 'std'])
-
-print(stats)
+stats = primary_traffic.groupby('hour')['traffic_factor'].agg(['mean', 'std'])
 ```
 
-### Example 2: Extract Peak Hour Data
+### Extract Peak Hours
 
 ```python
-# Get peak hours (7-10 AM, 5-8 PM)
 peak_ts = timestamps[
     ((timestamps['hour'] >= 7) & (timestamps['hour'] < 10)) |
     ((timestamps['hour'] >= 17) & (timestamps['hour'] < 20))
 ]['ts_idx']
-
 peak_data = traffic[traffic['ts_idx'].isin(peak_ts)]
 ```
 
-### Example 3: Spatial Filtering
+### Spatial Filtering
 
 ```python
-# Select edges in central Dhaka
 central_edges = edges[
     (edges['u_lat'] >= 23.73) & (edges['u_lat'] <= 23.78) &
     (edges['u_lon'] >= 90.38) & (edges['u_lon'] <= 90.42)
 ]
-
 central_traffic = traffic[traffic['eidx'].isin(central_edges['eidx'])]
 ```
-
----
-
-## Citation
-
-If you use this dataset or code in your research, please cite:
-
-```bibtex
-@dataset{dhaka_traffic_flow_2025,
-  title={Traffic Flow Prediction Dataset: Dhaka Urban Network},
-  author={Tasmia Hossain and Traffic-Flow Organization},
-  year={2025},
-  publisher={GitHub},
-  url={https://github.com/Traffic-Flow/Traffic-Flow-Prediction},
-  note={Graph Neural Network-ready traffic dataset with spatial-temporal features}
-}
-```
-
----
-
-## Contributing
-
-Contributions are welcome and encouraged. Areas for enhancement include:
-
-- Multi-week dataset variants for seasonality analysis
-- Real-world OSM events and incident integration
-- Incident-based congestion modeling
-- Origin-destination matrix generation for validation
-- Baseline GNN implementations (TGCN, STGCN, ASTGCN)
-- Real-time prediction application programming interface
-- Web-based dashboard for visualization
-- Comparison with other cities (Karachi, Lahore, etc.)
-
-**Contribution Process:**
-
-1. Fork the repository
-2. Create a feature branch (git checkout -b feature/your-feature)
-3. Commit changes (git commit -am 'Add your feature')
-4. Push to branch (git push origin feature/your-feature)
-5. Open a Pull Request
-
----
-
-## License
-
-Academic and Research Use Only
-
-This dataset and code are provided for academic and non-commercial research purposes. For commercial licensing inquiries, please contact the maintainers.
-
----
-
-## Contact and Support
-
-**Traffic-Flow Organization**
-- Email: [contact email]
-- GitHub: [Traffic-Flow](https://github.com/Traffic-Flow)
-- Dataset: [Traffic-Flow-Prediction](https://github.com/Traffic-Flow/Traffic-Flow-Prediction)
-
-**Maintainer:** Tasmia Hossain
-**Affiliation:** AUST (Ahsanullah University of Science and Technology)
-
----
-
-## Acknowledgments
-
-- OSM Contributors: [OpenStreetMap](https://www.openstreetmap.org) for road network data
-- BRTA: Bangladesh Road Transport Authority for speed guidelines
-- Tools and Libraries:
-  - OSMnx for network extraction
-  - PyArrow for efficient data storage
-  - PyTorch Geometric for GNN implementation
-  - NetworkX for graph operations
-
----
-
-## Changelog
-
-### Version 1.0 (June 2026)
-
-- Initial dataset release
-- Seven visualization plots
-- Comprehensive documentation
-- Python notebook tutorials
-
----
-
-<div align="center">
-
-Made with dedication for traffic research
-
-Last Updated: June 2026 | Version 1.0 | Status: Production Ready
-
-</div>
