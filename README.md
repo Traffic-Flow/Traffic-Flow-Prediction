@@ -571,29 +571,3 @@ checks = {
 for check_name, result in checks.items():
     print(f"[{'PASS' if result else 'FAIL'}] {check_name}")
 ```
-
----
-
-## References
-
-Guo, S., Lin, Y., Feng, N., Song, C., & Wan, H. (2019). Attention based spatial-temporal graph convolutional networks for traffic flow forecasting. AAAI Conference on Artificial Intelligence.
-
-Yu, B., Yin, H., & Zhu, Z. (2018). Spatio-temporal graph convolutional networks: A deep learning framework for traffic forecasting. IJCAI.
-
-Zhao, L., Song, Y., Zhang, C., Liu, Y., Wang, P., Lin, T., et al. (2020). T-GCN: A temporal graph convolutional network for urban traffic flow prediction method. IEEE Transactions on Intelligent Transportation Systems.
-
-Boeing, G. (2017). OSMnx: New methods for acquiring, constructing, analyzing, and visualizing complex street networks. Computers, Environment and Urban Systems.
-
----
-
-## License
-
-MIT License. See LICENSE file for details.
-
----
-
-## Author
-
-Tasmia Hossain  
-Email: tasmiahossainkashfia@gmail.com  
-GitHub: [@Tasmia-Hossain](https://github.com/Tasmia-Hossain)
