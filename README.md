@@ -77,50 +77,6 @@ flowchart TD
     T --> U["Visualizations<br/>(7 PNG Figures)"]
 ```
 
-### Data Processing Phases
-
-```mermaid
-graph LR
-    subgraph Phase1["Phase 1: Data Acquisition"]
-        A1["Download OSM<br/>Network"]
-        A2["Filter by<br/>Highway Tags"]
-        A3["Extract<br/>Boundary"]
-        A1 --> A2 --> A3
-    end
-    
-    subgraph Phase2["Phase 2: Spatial Engineering"]
-        B1["Extract<br/>Coordinates"]
-        B2["Calculate<br/>Distances"]
-        B3["Road Type<br/>Classification"]
-        B4["Assign<br/>Speed Limits"]
-        B1 --> B2 --> B3 --> B4
-    end
-    
-    subgraph Phase3["Phase 3: Temporal Engineering"]
-        C1["Generate<br/>672 Timestamps"]
-        C2["Extract<br/>Temporal Attrs"]
-        C3["Cyclical<br/>Encoding"]
-        C1 --> C2 --> C3
-    end
-    
-    subgraph Phase4["Phase 4: Traffic Simulation"]
-        D1["Hour Pattern<br/>Modeling"]
-        D2["Temporal<br/>Adjustments"]
-        D3["Capacity<br/>Effects"]
-        D4["Speed & Travel<br/>Time Calc"]
-        D1 --> D2 --> D3 --> D4
-    end
-    
-    subgraph Phase5["Phase 5: Output"]
-        E1["3 Parquet Files<br/>1.57 GB"]
-    end
-    
-    A3 --> B1
-    B4 --> C1
-    C3 --> D1
-    D4 --> E1
-```
-
 ### GNN Model Architecture (ASTGCN)
 
 ```mermaid
